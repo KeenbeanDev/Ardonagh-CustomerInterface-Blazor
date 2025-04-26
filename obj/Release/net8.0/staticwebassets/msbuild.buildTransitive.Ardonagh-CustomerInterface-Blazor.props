@@ -1,0 +1,3 @@
+﻿<Project>
+  <Import Project="..\buildMultiTargeting\Ardonagh-CustomerInterface-Blazor.props" />
+</Project>

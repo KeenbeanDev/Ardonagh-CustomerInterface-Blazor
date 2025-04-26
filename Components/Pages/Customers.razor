@@ -1,0 +1,125 @@
+﻿@page "/"
+@rendermode InteractiveServer
+@inject IDialogService DialogService
+@inject ProtectedSessionStorage ProtectedSessionStore
+
+<MudThemeProvider />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<PageTitle>Customer Data</PageTitle>
+<h1>Customer</h1>
+
+<MudDataGrid
+    T="Customer"
+    Striped="true"
+    ColumnResizeMode="ResizeMode.Column"
+    Items="@customerList"
+    ReadOnly="false" EditMode="@DataGridEditMode.Form"
+    Bordered="true" Dense="true" EditTrigger="@DataGridEditTrigger.Manual">
+    <Columns>
+        <PropertyColumn Property="x => x.Name">
+            <EditTemplate>
+                <MudTextField T="string" Label="Name" MaxLength="50"
+                              Required="true" RequiredError="Name is required!"
+                              @bind-Value="@context.Item.Name" />
+            </EditTemplate>
+        </PropertyColumn>
+        <PropertyColumn Property="x => x.Age">
+            <EditTemplate>
+                <MudNumericField T="int" Label="Age" Min="0" Max="110"
+                                 Required="true" RequiredError="Age is required!"
+                                 @bind-Value="@context.Item.Age" />
+            </EditTemplate>
+        </PropertyColumn>
+        <PropertyColumn Property="x => x.Postcode">
+            <EditTemplate>
+                <MudTextField T="string" Label="Postcode" OnlyValidateIfDirty="true"
+                              Required="true" RequiredError="Postcode is required!"
+                              Validation="@(customerValidator.ValidatePostCode)"
+                              @bind-Value="@context.Item.Postcode" />
+            </EditTemplate>
+        </PropertyColumn>
+        <PropertyColumn Property="x => x.Height">
+            <EditTemplate>
+                <MudNumericField T="double" Label="Height" Step=".01D" Min="0.0D" Max="2.5D"
+                                 Required="true" RequiredError="Height is required!"
+                                 @bind-Value="@context.Item.Height" />
+            </EditTemplate>
+        </PropertyColumn>
+        <TemplateColumn Title="Edit" CellClass="d-flex justify-end">
+            <CellTemplate>
+                <MudIconButton Size="@Size.Small" Icon="@Icons.Material.Outlined.Edit" OnClick="@context.Actions.StartEditingItemAsync" />
+            </CellTemplate>
+        </TemplateColumn>
+    </Columns>
+</MudDataGrid>
+
+<div class="d-flex flex-wrap mt-4">
+    <span>
+        <MudButton OnClick="OpenAddCustomerDialog" StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Filled" Color="Color.Primary">Add</MudButton> 
+    </span>
+</div>
+
+<style>
+    .MudIconButton {
+        margin:auto;
+        align-content: center;
+    }
+</style>
+
+@code {
+    private List<Customer> customerList;
+    private CustomerFluentValidator customerValidator = new CustomerFluentValidator();
+    bool success;
+
+    private async Task OpenAddCustomerDialog() {
+        var options = new DialogOptions { CloseOnEscapeKey = true };
+
+        var dialog = await DialogService.ShowAsync<AddCustomer>("Add Customer", options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+            customerList.Add((Customer)result.Data);
+
+        await ProtectedSessionStore.SetAsync("customers", customerList);
+    }
+
+    private bool ValidatePostCode(string postcode) {
+        bool result = customerValidator.ValidatePostCode(postcode);
+
+        if (!result)
+            success = false;
+
+        return result;
+    }
+
+    private void OnValidSubmit(EditContext context) {
+        success = true;
+        StateHasChanged();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender) {
+        if (firstRender) {
+            var result = await ProtectedSessionStore.GetAsync<List<Customer>>("customers");
+
+            if(result.Value != null) {
+                List<Customer> storedCustomers = result.Value;
+
+                if (storedCustomers != null)
+                    customerList = storedCustomers;
+
+                StateHasChanged();
+            } else {
+                customerList = new List<Customer>
+                {
+                    new Customer("John Smith", 25, "AA11 1AA", 1.89),
+                    new Customer("Sarah Jane", 23, "BB22 2BB", 1.71),
+                };
+
+                StateHasChanged();
+            }
+        }
+    }
+}
